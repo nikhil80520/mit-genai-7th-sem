@@ -2,7 +2,7 @@
 import os
 
 from dotenv import load_dotenv
-from groq import Groq
+from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
@@ -11,14 +11,8 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     raise RuntimeError("GROQ_API_KEY is missing from .env")
-client = Groq(api_key=api_key)
 MODEL = "openai/gpt-oss-20b"
-
-
-def call_model(prompt_value):
-    messages = [{"role": message.type if message.type in {"system", "user", "assistant"} else "user", "content": message.content} for message in prompt_value.to_messages()]
-    response = client.chat.completions.create(model=MODEL, temperature=0.1, max_tokens=900, messages=messages)
-    return response.choices[0].message.content.strip()
+model = ChatGroq(model=MODEL, api_key=api_key, temperature=0.1, max_tokens=900)
 
 
 
@@ -41,9 +35,11 @@ pitch_parser = StrOutputParser()
 
 def run_pipeline(travel_preference_text):
     profile_message = profile_prompt.invoke({"travel_preference_text": travel_preference_text, "format_instructions": parser.get_format_instructions()})
-    profile = parser.parse(call_model(profile_message))
+    result = model.invoke(profile_message)
+    profile = parser.invoke(result)
     pitch_message = pitch_prompt.invoke({"profile": profile.model_dump_json(indent=2)})
-    return profile, pitch_parser.parse(call_model(pitch_message))
+    result = model.invoke(pitch_message)
+    return profile, pitch_parser.invoke(result)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 import os
 
 from dotenv import load_dotenv
-from groq import Groq
+from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
@@ -11,14 +11,8 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     raise RuntimeError("GROQ_API_KEY is missing from .env")
-client = Groq(api_key=api_key)
 MODEL = "openai/gpt-oss-20b"
-
-
-def call_model(prompt_value):
-    messages = [{"role": message.type if message.type in {"system", "user", "assistant"} else "user", "content": message.content} for message in prompt_value.to_messages()]
-    response = client.chat.completions.create(model=MODEL, temperature=0.1, max_tokens=900, messages=messages)
-    return response.choices[0].message.content.strip()
+model = ChatGroq(model=MODEL, api_key=api_key, temperature=0.1, max_tokens=900)
 
 
 
@@ -69,11 +63,14 @@ scorecard_prompt = ChatPromptTemplate.from_messages([
 
 def run_pipeline(transcript_text, skills_to_assess):
     answers_message = answers_prompt.invoke({"transcript_text": transcript_text, "format_instructions": answers_parser.get_format_instructions()})
-    answers = answers_parser.parse(call_model(answers_message))
+    result = model.invoke(answers_message)
+    answers = answers_parser.invoke(result)
     evaluation_message = evaluation_prompt.invoke({"skills": skills_to_assess, "answers": answers.model_dump_json(indent=2), "format_instructions": evaluation_parser.get_format_instructions()})
-    evaluations = evaluation_parser.parse(call_model(evaluation_message))
+    result = model.invoke(evaluation_message)
+    evaluations = evaluation_parser.invoke(result)
     scorecard_message = scorecard_prompt.invoke({"evaluations": evaluations.model_dump_json(indent=2), "format_instructions": scorecard_parser.get_format_instructions()})
-    scorecard = scorecard_parser.parse(call_model(scorecard_message))
+    result = model.invoke(scorecard_message)
+    scorecard = scorecard_parser.invoke(result)
     return answers, evaluations, scorecard
 
 

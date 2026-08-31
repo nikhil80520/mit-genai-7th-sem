@@ -2,7 +2,7 @@
 import os
 
 from dotenv import load_dotenv
-from groq import Groq
+from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
@@ -11,14 +11,8 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     raise RuntimeError("GROQ_API_KEY is missing from .env")
-client = Groq(api_key=api_key)
 MODEL = "openai/gpt-oss-20b"
-
-
-def call_model(prompt_value):
-    messages = [{"role": message.type if message.type in {"system", "user", "assistant"} else "user", "content": message.content} for message in prompt_value.to_messages()]
-    response = client.chat.completions.create(model=MODEL, temperature=0.1, max_tokens=900, messages=messages)
-    return response.choices[0].message.content.strip()
+model = ChatGroq(model=MODEL, api_key=api_key, temperature=0.1, max_tokens=900)
 
 
 
@@ -53,9 +47,11 @@ def run_pipeline(fitness_goal_text, days_per_week):
     if days_per_week < 1 or days_per_week > 7:
         raise ValueError("days_per_week must be between 1 and 7.")
     goal_message = goal_prompt.invoke({"fitness_goal_text": fitness_goal_text, "format_instructions": goal_parser.get_format_instructions()})
-    goal = goal_parser.parse(call_model(goal_message))
+    result = model.invoke(goal_message)
+    goal = goal_parser.invoke(result)
     plan_message = plan_prompt.invoke({"goal": goal.model_dump_json(indent=2), "days_per_week": days_per_week, "format_instructions": plan_parser.get_format_instructions()})
-    plan = plan_parser.parse(call_model(plan_message))
+    result = model.invoke(plan_message)
+    plan = plan_parser.invoke(result)
     return goal, plan
 
 

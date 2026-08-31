@@ -2,7 +2,7 @@
 import os
 
 from dotenv import load_dotenv
-from groq import Groq
+from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
@@ -11,14 +11,8 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     raise RuntimeError("GROQ_API_KEY is missing from .env")
-client = Groq(api_key=api_key)
 MODEL = "openai/gpt-oss-20b"
-
-
-def call_model(prompt_value):
-    messages = [{"role": message.type if message.type in {"system", "user", "assistant"} else "user", "content": message.content} for message in prompt_value.to_messages()]
-    response = client.chat.completions.create(model=MODEL, temperature=0.1, max_tokens=900, messages=messages)
-    return response.choices[0].message.content.strip()
+model = ChatGroq(model=MODEL, api_key=api_key, temperature=0.1, max_tokens=900)
 
 
 
@@ -50,11 +44,14 @@ report_parser = StrOutputParser()
 
 def run_pipeline(chat_log_text):
     summary_message = summary_prompt.invoke({"chat_log_text": chat_log_text, "format_instructions": summary_parser.get_format_instructions()})
-    summary = summary_parser.parse(call_model(summary_message))
+    result = model.invoke(summary_message)
+    summary = summary_parser.invoke(result)
     readiness_message = readiness_prompt.invoke({"summary": summary.model_dump_json(indent=2), "format_instructions": readiness_parser.get_format_instructions()})
-    readiness = readiness_parser.parse(call_model(readiness_message))
+    result = model.invoke(readiness_message)
+    readiness = readiness_parser.invoke(result)
     report_message = report_prompt.invoke({"summary": summary.model_dump_json(indent=2), "readiness": readiness.model_dump_json(indent=2)})
-    report = report_parser.parse(call_model(report_message))
+    result = model.invoke(report_message)
+    report = report_parser.invoke(result)
     return summary, readiness, report
 
 

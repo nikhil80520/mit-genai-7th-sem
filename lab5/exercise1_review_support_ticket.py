@@ -2,7 +2,7 @@
 import os
 
 from dotenv import load_dotenv
-from groq import Groq
+from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
@@ -11,14 +11,8 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     raise RuntimeError("GROQ_API_KEY is missing from .env")
-client = Groq(api_key=api_key)
 MODEL = "openai/gpt-oss-20b"
-
-
-def call_model(prompt_value):
-    messages = [{"role": message.type if message.type in {"system", "user", "assistant"} else "user", "content": message.content} for message in prompt_value.to_messages()]
-    response = client.chat.completions.create(model=MODEL, temperature=0.1, max_tokens=900, messages=messages)
-    return response.choices[0].message.content.strip()
+model = ChatGroq(model=MODEL, api_key=api_key, temperature=0.1, max_tokens=900)
 
 
 
@@ -42,9 +36,11 @@ ticket_parser = StrOutputParser()
 
 def run_pipeline(review_text):
     extraction = extract_prompt.invoke({"review_text": review_text, "format_instructions": complaint_parser.get_format_instructions()})
-    complaint = complaint_parser.parse(call_model(extraction))
+    result = model.invoke(extraction)
+    complaint = complaint_parser.invoke(result)
     ticket_message = ticket_prompt.invoke({"complaint_data": complaint.model_dump_json(indent=2)})
-    ticket = ticket_parser.parse(call_model(ticket_message))
+    result = model.invoke(ticket_message)
+    ticket = ticket_parser.invoke(result)
     return complaint, ticket
 
 

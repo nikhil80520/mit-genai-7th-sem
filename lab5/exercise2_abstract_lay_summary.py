@@ -2,7 +2,7 @@
 import os
 
 from dotenv import load_dotenv
-from groq import Groq
+from langchain_groq import ChatGroq
 from pydantic import BaseModel, Field
 from langchain_core.output_parsers import PydanticOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
@@ -11,14 +11,8 @@ load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     raise RuntimeError("GROQ_API_KEY is missing from .env")
-client = Groq(api_key=api_key)
 MODEL = "openai/gpt-oss-20b"
-
-
-def call_model(prompt_value):
-    messages = [{"role": message.type if message.type in {"system", "user", "assistant"} else "user", "content": message.content} for message in prompt_value.to_messages()]
-    response = client.chat.completions.create(model=MODEL, temperature=0.1, max_tokens=900, messages=messages)
-    return response.choices[0].message.content.strip()
+model = ChatGroq(model=MODEL, api_key=api_key, temperature=0.1, max_tokens=900)
 
 
 
@@ -40,9 +34,11 @@ summary_parser = StrOutputParser()
 
 def run_pipeline(abstract_text):
     extraction_message = extract_prompt.invoke({"abstract_text": abstract_text, "format_instructions": parser.get_format_instructions()})
-    extraction = parser.parse(call_model(extraction_message))
+    result = model.invoke(extraction_message)
+    extraction = parser.invoke(result)
     summary_message = summary_prompt.invoke({"extraction": extraction.model_dump_json(indent=2)})
-    return extraction, summary_parser.parse(call_model(summary_message))
+    result = model.invoke(summary_message)
+    return extraction, summary_parser.invoke(result)
 
 
 if __name__ == "__main__":
