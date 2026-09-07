@@ -13,3 +13,5 @@ python lab5/exercise1_review_support_ticket.py
 ```
 
 The later stages receive serialized parsed Pydantic data only, never the original raw input.
+
+Exercise 4 also uses the Open-Meteo geocoding and forecast APIs to retrieve the weather for the extracted location and date. It requires an internet connection when run.
