@@ -1,0 +1,14 @@
+env for window
+python -m venv myenv
+
+env for mac
+python3 -m venv myenv
+
+for windows activate command 
+.\myenv\Scripts\activate
+
+for mac
+source .\myenv\bin\activate
+
+for freeze env packages
+pip freeze >  .\requirments.txt
