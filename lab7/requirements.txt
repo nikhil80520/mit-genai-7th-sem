@@ -1,0 +1,9 @@
+langchain-core
+langchain-groq
+langchain-chroma
+langchain-docling
+langchain-huggingface
+langchain-text-splitters
+python-dotenv
+docling
+sentence-transformers
