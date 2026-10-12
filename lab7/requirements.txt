@@ -7,3 +7,4 @@ langchain-text-splitters
 python-dotenv
 docling
 sentence-transformers
+rank-bm25
