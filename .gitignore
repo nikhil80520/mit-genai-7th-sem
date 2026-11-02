@@ -1,1 +1,5 @@
 .env
+.claude
+.vscode
+.agents
+skills-lock.json
